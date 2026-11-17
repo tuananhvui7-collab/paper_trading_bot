@@ -21,6 +21,27 @@ class PortfolioManager:
             # Do not treat an API failure as an empty portfolio and buy again.
             raise RuntimeError("Khong lay duoc vi the; bo qua giao dich") from e
 
+    def get_position_details(self, symbol: str) -> Optional[dict]:
+        """Return crypto quantity and Alpaca's unrealized P/L fraction."""
+        wanted = symbol.replace("/", "").upper()
+        try:
+            for position in self.api.list_positions():
+                actual = position.symbol.replace("/", "").upper()
+                if actual == wanted:
+                    pnl_pct = getattr(position, "unrealized_plpc", None)
+                    if pnl_pct is None:
+                        raise RuntimeError(
+                            f"Alpaca khong tra unrealized_plpc cho {symbol}")
+                    return {
+                        "qty": float(position.qty),
+                        "unrealized_plpc": float(pnl_pct),
+                    }
+            return None
+        except Exception as e:
+            self.logger.error("Loi lay P/L vi the %s: %s", symbol, e)
+            raise RuntimeError(
+                f"Khong the kiem tra stop-loss cho {symbol}") from e
+
     def get_buying_power(self) -> float:
         return float(self.api.get_account().buying_power)
 

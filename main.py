@@ -12,7 +12,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Alpaca crypto paper trading bot")
     p.add_argument("--once", action="store_true", help="chay 1 chu ky roi thoat")
     p.add_argument("--dry-run", action="store_true", help="chi log, khong gui lenh")
-    p.add_argument("--interval", type=int, default=30, help="so phut giua cac chu ky")
+    p.add_argument("--interval", type=int, default=5, help="so phut giua cac chu ky")
     p.add_argument("--bollinger", action="store_true", help="bat them chien luoc Bollinger")
     args = p.parse_args()
 

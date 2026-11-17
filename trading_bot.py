@@ -36,6 +36,23 @@ class TradingBot:
     # ---- chu ky giao dich ----
     def run_trading_cycle(self) -> None:
         for symbol in self.config.symbols:
+            try:
+                position = self.portfolio_manager.get_position_details(symbol)
+            except RuntimeError as e:
+                self.logger.error("Bo qua %s vi khong kiem tra duoc stop-loss: %s",
+                                  symbol, e)
+                continue
+
+            if position is not None and position["unrealized_plpc"] <= -self.config.stop_loss_pct:
+                loss_pct = position["unrealized_plpc"] * 100
+                self.logger.warning(
+                    "STOP-LOSS %s: P/L %.2f%% <= -%.2f%%; ban toan bo vi the",
+                    symbol, loss_pct, self.config.stop_loss_pct * 100)
+                self.order_manager.place_market_order(
+                    symbol, "sell", qty=abs(position["qty"]))
+                # Do not open a new position in the same cycle after cutting a loss.
+                continue
+
             data = self.data_manager.get_historical_data(symbol, self.config.history_days)
             if data.empty:
                 continue
@@ -76,7 +93,7 @@ class TradingBot:
         self.logger.info("Bo qua %s %s (vi the hien tai: %s)", action, symbol, current_qty)
         return False
 
-    def run_continuous(self, interval_minutes: int = 30) -> None:
+    def run_continuous(self, interval_minutes: int = 5) -> None:
         self.logger.info("Crypto bot chay lien tuc (PAPER) moi %d phut. Symbols=%s",
                          interval_minutes, self.config.symbols)
         while True:

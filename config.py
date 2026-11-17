@@ -11,6 +11,7 @@ class TradingConfig:
     api_secret: str
     max_position_size: float = 1000.0   # USD notional cap per buy
     risk_per_trade: float = 0.02        # order budget as a fraction of buying power
+    stop_loss_pct: float = 0.20         # close position at a 20% unrealized loss
     symbols: Optional[List[str]] = None
     min_confidence: float = 0.5         # nguong loc tin hieu
     history_days: int = 100
@@ -27,6 +28,8 @@ class TradingConfig:
             raise ValueError("risk_per_trade nen trong (0, 0.05]")
         if self.max_position_size <= 0:
             raise ValueError("max_position_size phai > 0")
+        if not 0 < self.stop_loss_pct < 1:
+            raise ValueError("stop_loss_pct phai trong khoang (0, 1)")
         if not self.symbols:
             raise ValueError("Danh sach cap crypto rong")
         if any("/" not in symbol for symbol in self.symbols):

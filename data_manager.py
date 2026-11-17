@@ -8,23 +8,21 @@ COLUMNS = ["open", "high", "low", "close", "volume"]
 
 
 class DataManager:
-    """Lay du lieu lich su; chuan hoa cot; xu ly loi API."""
+    """Lay va chuan hoa du lieu nen crypto tu Alpaca."""
 
-    def __init__(self, api, feed="iex"):
+    def __init__(self, api):
         self.api = api
-        self.feed = feed
         self.logger = logging.getLogger("TradingBot.data")
 
     def get_historical_data(self, symbol: str, days: int = 100) -> pd.DataFrame:
         end = datetime.now()
         start = end - timedelta(days=days)
         try:
-            bars = self.api.get_bars(
+            bars = self.api.get_crypto_bars(
                 symbol, TimeFrame.Day,
                 start=start.strftime("%Y-%m-%d"),
                 end=end.strftime("%Y-%m-%d"),
-                adjustment="raw",
-                feed=self.feed,        # xem TradingConfig.data_feed
+                loc="us",
             ).df
         except Exception as e:
             self.logger.error("Loi lay du lieu %s: %s", symbol, e)

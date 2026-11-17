@@ -13,20 +13,24 @@ class PortfolioManager:
 
     def get_positions(self) -> Dict[str, float]:
         try:
-            return {p.symbol: float(p.qty) for p in self.api.list_positions()}
+            # Alpaca has used both BTC/USD and BTCUSD symbology in crypto APIs.
+            return {p.symbol.replace("/", "").upper(): float(p.qty)
+                    for p in self.api.list_positions()}
         except Exception as e:
             self.logger.error("Loi lay vi the: %s", e)
-            return {}
+            # Do not treat an API failure as an empty portfolio and buy again.
+            raise RuntimeError("Khong lay duoc vi the; bo qua giao dich") from e
 
     def get_buying_power(self) -> float:
         return float(self.api.get_account().buying_power)
 
-    def calculate_position_size(self, price: float, risk_amount: Optional[float] = None) -> int:
+    def calculate_order_notional(self, risk_amount: Optional[float] = None) -> float:
+        """USD amount for a crypto buy; this is exposure, not maximum possible loss."""
         if risk_amount is None:
             buying_power = self.get_buying_power()
             risk_amount = min(buying_power * self.config.risk_per_trade,
                               self.config.max_position_size)
-            if price > buying_power:
-                self.logger.warning("Gia %.2f vuot buying power %.2f", price, buying_power)
-                return 0
-        return max(1, int(risk_amount / price))
+        if risk_amount <= 0:
+            self.logger.warning("Notional mua crypto khong hop le: %.2f", risk_amount)
+            return 0.0
+        return round(float(risk_amount), 2)

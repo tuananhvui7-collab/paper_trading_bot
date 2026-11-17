@@ -1,41 +1,39 @@
-# Alpaca Paper Trading Bot
+# Alpaca Crypto Paper Trading Bot
 
-Xay theo bai "Build a Python Paper Trading Bot with Alpaca API" (Anil Gaddam, Medium, 04/11/2025).
-Khong tim thay GitHub cua tac gia, nen day la ban tu viet lai theo code va kien truc trong bai.
-Bot **luon chay paper trading** (URL co dinh `https://paper-api.alpaca.markets`).
-
-## Kien truc (khop bai viet)
-| Thanh phan | File | Vai tro |
-|---|---|---|
-| `TradingConfig` | `config.py` | Cai dat tap trung (dataclass) |
-| `TradingStrategy` (ABC) | `strategies/base.py` | Lop cha cho moi chien luoc |
-| MovingAverageCrossover, RSI | `strategies/` | 2 chien luoc chinh |
-| BollingerBands, MACD | `strategies/` | Vi du mo rong trong bai |
-| `DataManager` | `data_manager.py` | Lay & chuan hoa du lieu |
-| `PortfolioManager` | `portfolio_manager.py` | Vi the + position sizing |
-| `OrderManager` | `order_manager.py` | Lenh market / limit |
-| `TradingBot` | `trading_bot.py` | Dieu phoi, loc confidence, bao cao |
+Bot nay lay nen crypto ngay tu Alpaca va chi gui lenh den paper-trading endpoint. Mac dinh bot theo doi `BTC/USD` va `ETH/USD`; khong can cho thi truong co phieu My mo cua.
 
 ## Cai dat
-```bash
-python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-cp .env.example .env     # dien PAPER key tu https://app.alpaca.markets
+Copy-Item .env.example .env
 ```
 
-## Chay
-```bash
-python main.py --once --dry-run --ignore-market-hours   # thu, khong dat lenh
-python main.py --once                                   # 1 chu ky (chi khi thi truong mo)
-python main.py --interval 30                            # chay lien tuc moi 30 phut
-python main.py --bollinger                              # bat them Bollinger Bands
-pytest -q                                               # test offline
+Dien paper API key/secret cua Alpaca vao `.env`. Khong chia se file nay.
+
+```env
+ALPACA_API_KEY=your_paper_trading_api_key
+ALPACA_API_SECRET=your_paper_trading_secret_key
+SYMBOLS=BTC/USD,ETH/USD
 ```
 
-## Khac biet so voi bai (ghi ro)
-- Bai de trong "Execute buy/sell logic" va than Bollinger: toi tu dien (Bollinger: gia ngoai dai +-2 sigma, mac dinh TAT, bat bang `--bollinger`).
-- Bao cao: dung `account.unrealized_pl` nhu bai; neu tai khoan khong co truong nay thi tu dong dung `equity - last_equity`.
-- `TradingConfig.data_feed = "iex"` (goi mien phi). Neu API bao loi SIP/feed, thu doi sang `None` hoac `"sip"`.
-- TradingView: chi co KHUNG `TradingViewDataManager` (NotImplementedError), can tai khoan + `tvDatafeed`.
-- Neu BUY va SELL cung xuat hien cho 1 ma, chi lay nhom co confidence trung binh cao hon.
-- Chua chay voi Alpaca that. Chi dung de hoc tap.
+## Chay thu
+
+```powershell
+python main.py --once --dry-run
+python main.py --once
+python main.py --interval 30
+python main.py --bollinger
+```
+
+`--dry-run` van lay du lieu va tai khoan tu Alpaca, nhung khong gui lenh. Lenh mua dung gia tri USD (`notional`); lenh ban dung so luong crypto dang nam giu. Lenh market crypto gui voi `time_in_force=gtc`.
+
+## Gioi han va rui ro
+
+- Bot mac dinh chi ket noi `https://paper-api.alpaca.markets`.
+- `max_position_size` gioi han gia tri USD cua tung lenh mua. `risk_per_trade` hien la ty le ngan sach lenh tren buying power, khong phai muc lo toi da.
+- Bot dung nen ngay. Chay moi 30 phut la tan suat kiem tra, khong phai du lieu tick-by-tick.
+- Kha nang giao dich crypto phu thuoc quyen tai khoan va cap giao dich duoc Alpaca ho tro. Neu API tu choi cap hoac lenh, bot se ghi loi vao log.
+- Chi dung paper account de hoc va danh gia. Paper trading khong dam bao ket qua khi giao dich that.

@@ -32,8 +32,10 @@ class StockMetrics:
     volatility_daily: float = 0.0
     volatility_annual: float = 0.0
     volatility_passed: bool = False
+    max_correlation: float = 0.0
+    most_correlated_with: str = "N/A"
     overall_passed: bool = False
-    status: str = "FAILED_DATA"  # QUALIFIED | FAILED_DATA | FAILED_LIQUIDITY | FAILED_VOLATILITY | PRUNED_CORRELATION | SELECTED
+    status: str = "FAILED_DATA"  # QUALIFIED | FAILED_DATA | FAILED_LIQUIDITY | FAILED_VOLATILITY | PRUNED_CORRELATION | PRUNED_LIMIT | SELECTED
     reason: str = ""
 
 
@@ -200,13 +202,7 @@ class StockScreener:
         pruned: List[str] = []
 
         for symbol in sorted_symbols:
-            if len(selected) >= target_n:
-                pruned.append(symbol)
-                metrics_dict[symbol].status = "PRUNED_LIMIT"
-                metrics_dict[symbol].reason = f"Da du so luong {target_n} ma toi uu"
-                continue
-
-            # Kiem tra tuong quan voi cac ma da duoc chon
+            # Kiem tra tuong quan voi cac ma da duoc chon truoc
             is_correlated = False
             correlated_with = ""
             corr_val = 0.0
@@ -234,6 +230,10 @@ class StockScreener:
                     "LOAI %s: Tuong quan cao voi %s (r = %.2f > %.2f)",
                     symbol, correlated_with, corr_val, max_corr,
                 )
+            elif len(selected) >= target_n:
+                pruned.append(symbol)
+                metrics_dict[symbol].status = "PRUNED_LIMIT"
+                metrics_dict[symbol].reason = f"Da du so luong {target_n} ma toi uu"
             else:
                 selected.append(symbol)
                 metrics_dict[symbol].status = "SELECTED"
@@ -309,6 +309,17 @@ class StockScreener:
         # Buoc 4: Ma tran tuong quan va Pruning
         corr_matrix = self.calculate_correlation_matrix(valid_dfs)
 
+        # Cap nhat chi so tuong quan cao nhat cho tung ma
+        if not corr_matrix.empty and len(corr_matrix) > 1:
+            for sym in corr_matrix.index:
+                other_corrs = corr_matrix.loc[sym].drop(index=sym, errors="ignore")
+                if not other_corrs.empty:
+                    top_sym = other_corrs.idxmax()
+                    top_val = float(other_corrs.max())
+                    if sym in metrics_dict:
+                        metrics_dict[sym].max_correlation = round(top_val, 4)
+                        metrics_dict[sym].most_correlated_with = f"{top_sym} (r={top_val:.2f})"
+
         selected_symbols, pruned_symbols = self.prune_correlated_assets(
             qualified_symbols=qualified_symbols,
             metrics_dict=metrics_dict,
@@ -327,6 +338,7 @@ class StockScreener:
                 "Data Status": "VALID" if m.data_valid else "INVALID",
                 "ADV ($)": m.adv,
                 "Annual Volatility": f"{m.volatility_annual * 100:.2f}%",
+                "Max Correlation": m.most_correlated_with,
                 "Screening Status": m.status,
                 "Reason": m.reason,
             })

@@ -48,9 +48,31 @@ def main() -> None:
         screener = StockScreener(dm, config)
         result = screener.run_screening()
 
-        log.info("\n%s", result.summary_df[["Symbol", "Data Status", "ADV ($)", "Annual Volatility", "Screening Status"]])
+        log.info("\n=== BẢNG CHỈ SỐ TÀI CHÍNH & TRẠNG THÁI SÀNG LỌC ===\n%s",
+                 result.summary_df[["Symbol", "Data Status", "ADV ($)", "Annual Volatility", "Max Correlation", "Screening Status"]])
+
+        if not result.correlation_matrix.empty:
+            log.info("\n=== MA TRẬN TƯƠNG QUAN PEARSON (CORRELATION MATRIX) ===\n%s",
+                     result.correlation_matrix.to_string())
+
+            # Quét và cảnh báo các cặp có tương quan cao
+            high_corr_pairs = []
+            cols = list(result.correlation_matrix.columns)
+            for i in range(len(cols)):
+                for j in range(i + 1, len(cols)):
+                    val = result.correlation_matrix.iloc[i, j]
+                    if val > config.max_correlation:
+                        high_corr_pairs.append((cols[i], cols[j], val))
+
+            if high_corr_pairs:
+                log.info("\n=== CẢNH BÁO TƯƠNG QUAN CAO (r > %.2f) ===", config.max_correlation)
+                for c1, c2, val in high_corr_pairs:
+                    log.warning("Cặp [%s - %s] có tương quan r = %.2f > %.2f (trùng lặp rủi ro ngành)",
+                                c1, c2, val, config.max_correlation)
+
         if result.selected_symbols:
-            log.info("Mã được chọn sau sàng lọc: %s", result.selected_symbols)
+            log.info("\n=== KẾT QUẢ SÀNG LỌC CUỐI CÙNG ===")
+            log.info("Mã được chọn sau sàng lọc (Top %d): %s", config.target_top_n, result.selected_symbols)
             config.symbols = result.selected_symbols
         else:
             log.warning("Không có mã nào đạt toàn bộ tiêu chí! Giữ nguyên danh mục mặc định.")

@@ -5,6 +5,7 @@ import pandas as pd
 
 from models import TradingSignal
 from .base import TradingStrategy
+from .indicators import wilder_rsi
 
 
 class RSIStrategy(TradingStrategy):
@@ -13,12 +14,7 @@ class RSIStrategy(TradingStrategy):
         self.period, self.oversold, self.overbought = period, oversold, overbought
 
     def _calculate_rsi(self, prices: pd.Series, period: int) -> pd.Series:
-        delta = prices.diff()
-        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi.where(loss != 0, 100.0).where(gain.notna())  # loss=0 -> RSI 100
+        return wilder_rsi(prices, period)
 
     def generate_signals(self, data: pd.DataFrame, symbol: str) -> List[TradingSignal]:
         if len(data) < self.period + 2:

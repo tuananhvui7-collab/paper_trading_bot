@@ -1,4 +1,5 @@
 import logging
+import time
 
 
 class OrderManager:
@@ -24,11 +25,45 @@ class OrderManager:
             else:
                 params["notional"] = notional
             order = self.api.submit_order(**params)
-            self.logger.info("Crypto market %s %s -> order %s", side, symbol, order.id)
+            order_id = str(order.id)
+            self.logger.info("ORDER SUBMITTED side=%s symbol=%s order_id=%s status=%s",
+                             side, symbol, order_id, getattr(order, "status", "unknown"))
+            self._log_fill_when_available(order, symbol, side)
             return True
         except Exception as e:
             self.logger.error("Loi dat lenh market %s %s: %s", side, symbol, e)
             return False
+
+    def _log_fill_when_available(self, order, symbol: str, side: str) -> None:
+        """Poll briefly so the log captures Alpaca's actual average fill price."""
+        order_id = str(order.id)
+        status = {"filled", "canceled", "expired", "rejected"}
+        latest = order
+        deadline = time.monotonic() + 5
+        get_order = getattr(self.api, "get_order", None)
+        while callable(get_order) and getattr(latest, "status", None) not in status:
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
+            try:
+                latest = get_order(order_id)
+            except Exception as e:
+                self.logger.warning("ORDER STATUS unavailable order_id=%s: %s", order_id, e)
+                break
+
+        order_status = getattr(latest, "status", "unknown")
+        avg_price = getattr(latest, "filled_avg_price", None)
+        filled_at = getattr(latest, "filled_at", None)
+        filled_qty = getattr(latest, "filled_qty", None)
+        if avg_price:
+            self.logger.info(
+                "ORDER FILL side=%s symbol=%s order_id=%s status=%s "
+                "filled_qty=%s avg_fill_price=%s filled_at_utc=%s",
+                side, symbol, order_id, order_status, filled_qty, avg_price, filled_at)
+        else:
+            self.logger.info("ORDER UPDATE side=%s symbol=%s order_id=%s status=%s "
+                             "filled_qty=%s avg_fill_price=pending",
+                             side, symbol, order_id, order_status, filled_qty)
 
     def place_limit_order(self, symbol: str, qty: float, side: str, limit_price: float) -> bool:
         if self.dry_run:

@@ -4,3 +4,5 @@ numpy
 yfinance
 python-dotenv
 pytest
+streamlit
+matplotlib

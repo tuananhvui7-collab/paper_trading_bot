@@ -5,6 +5,7 @@ import pandas as pd
 
 from models import TradingSignal
 from .base import TradingStrategy
+from .indicators import simple_moving_average
 
 
 class MovingAverageCrossoverStrategy(TradingStrategy):
@@ -17,23 +18,22 @@ class MovingAverageCrossoverStrategy(TradingStrategy):
     def generate_signals(self, data: pd.DataFrame, symbol: str) -> List[TradingSignal]:
         if len(data) < self.long_window + 2:
             return []
-        df = data.copy()
-        df["MA_short"] = df["close"].rolling(self.short_window).mean()
-        df["MA_long"] = df["close"].rolling(self.long_window).mean()
-        latest, previous = df.iloc[-1], df.iloc[-2]
-        price = float(latest["close"])
+        close = data["close"]
+        ma_short = simple_moving_average(close, self.short_window)
+        ma_long = simple_moving_average(close, self.long_window)
+        price = float(close.iloc[-1])
         signals: List[TradingSignal] = []
 
-        if latest["MA_short"] > latest["MA_long"] and previous["MA_short"] <= previous["MA_long"]:
+        if ma_short.iloc[-1] > ma_long.iloc[-1] and ma_short.iloc[-2] <= ma_long.iloc[-2]:
             signals.append(TradingSignal(
                 symbol=symbol, action="BUY", price=price,
                 quantity=self._calculate_quantity(price), timestamp=datetime.now(),
-                reason=f"MA crossover: {latest['MA_short']:.2f} > {latest['MA_long']:.2f}",
+                reason=f"SMA crossover: {ma_short.iloc[-1]:.2f} > {ma_long.iloc[-1]:.2f}",
                 confidence=0.7))
-        elif latest["MA_short"] < latest["MA_long"] and previous["MA_short"] >= previous["MA_long"]:
+        elif ma_short.iloc[-1] < ma_long.iloc[-1] and ma_short.iloc[-2] >= ma_long.iloc[-2]:
             signals.append(TradingSignal(
                 symbol=symbol, action="SELL", price=price,
                 quantity=self._calculate_quantity(price), timestamp=datetime.now(),
-                reason=f"MA crossover: {latest['MA_short']:.2f} < {latest['MA_long']:.2f}",
+                reason=f"SMA crossover: {ma_short.iloc[-1]:.2f} < {ma_long.iloc[-1]:.2f}",
                 confidence=0.7))
         return signals
